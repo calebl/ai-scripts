@@ -1,0 +1,34 @@
+#!/usr/bin/env ruby
+require 'fileutils'
+
+APP_ROOT = File.expand_path('..', __dir__)
+dir = ARGV[0] || APP_ROOT
+
+# Check if 'llm' command exists
+unless system('command -v llm > /dev/null 2>&1')
+  puts "Error: 'llm' command not found. Please install 'llm' with 'brew install llm' before running this script."
+  exit 1
+end
+
+llm_prompt = <<~PROMPT
+  You are a git commit message generator.
+  You will be given a list of changes to the codebase.
+  Create a concise 1 sentence, commit message for the changes.
+  return only the commit message, nothing else
+PROMPT
+
+dir = File.expand_path(dir)
+
+FileUtils.chdir dir do
+  commit_message = ARGV[1] || `git diff --cached | llm -s '#{llm_prompt}' --no-stream`
+
+  changes = `git status --porcelain`
+  if changes.strip.empty?
+    puts 'No changes to commit. Aborting.'
+    exit 0
+  end
+  `git add .`
+  puts "Committing changes with message: #{commit_message}"
+  `git commit -m "#{commit_message}"`
+  `git push`
+end
