@@ -12,7 +12,6 @@ end
 
 llm_prompt = <<~PROMPT
   You are a git commit message generator.
-  You will be given a list of changes to the codebase.
   Create a concise 1 sentence, commit message for the changes.
   return only the commit message, nothing else
 PROMPT
@@ -20,13 +19,13 @@ PROMPT
 dir = File.expand_path(dir)
 
 FileUtils.chdir dir do
-  commit_message = ARGV[1] || `git diff --cached | llm -s '#{llm_prompt}' --no-stream`
-
   changes = `git status --porcelain`
   if changes.strip.empty?
     puts 'No changes to commit. Aborting.'
     exit 0
   end
+  commit_message = ARGV[1] || `git diff --cached | llm '#{llm_prompt}' --no-stream`
+
   `git add .`
   puts "Committing changes with message: #{commit_message}"
   `git commit -m "#{commit_message}"`
