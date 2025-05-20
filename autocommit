@@ -31,12 +31,13 @@ FileUtils.chdir dir do
     changes_summary = `git diff --cached | llm -s 'summarize these changes into a brief paragraph' --no-stream`
     puts "Changes summary: #{changes_summary}\n\n"
     commit_message = `llm -c '#{llm_prompt}' --no-stream`
+    commit_message = commit_message.strip.gsub(%r{['`|\\/]}, '') # remove characters we don't want
     puts "Commit message: '#{commit_message}'"
   end
 
   return if ARGV.include?('--dry-run')
 
-  `git add . && git commit -m "#{commit_message}"`
+  `git commit -m "#{commit_message}"`
   puts 'Pushing changes to remote...'
   `git push`
 end
