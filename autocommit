@@ -11,9 +11,9 @@ unless system('command -v llm > /dev/null 2>&1')
 end
 
 llm_prompt = <<~PROMPT
-  You are a git commit message generator.
-  Create a concise 1 sentence, commit message for the changes.
-  return only the commit message, nothing else
+  simplify this paragraph into a concise 1 sentence commit message.
+  return only the commit message, nothing else. Do not surround the commit message with quotes.
+  the commit message does not need to be grammatically correct. Do not include any other text.
 PROMPT
 
 dir = File.expand_path(dir)
@@ -24,10 +24,19 @@ FileUtils.chdir dir do
     puts 'No changes to commit. Aborting.'
     exit 0
   end
-  commit_message = ARGV[1] || `git diff --cached | llm '#{llm_prompt}' --no-stream`
+  if ARGV[1] && ARGV[1] != '--dry-run'
+    commit_message = ARGV[1]
+  else
+    `git add .` # add changes so they are staged
+    changes_summary = `git diff --cached | llm -s 'summarize these changes into a brief paragraph' --no-stream`
+    puts "Changes summary: #{changes_summary}\n\n"
+    commit_message = `llm -c '#{llm_prompt}' --no-stream`
+    puts "Commit message: '#{commit_message}'"
+  end
 
-  `git add .`
-  puts "Committing changes with message: #{commit_message}"
-  `git commit -m "#{commit_message}"`
+  return if ARGV.include?('--dry-run')
+
+  `git add . && git commit -m "#{commit_message}"`
+  puts 'Pushing changes to remote...'
   `git push`
 end
